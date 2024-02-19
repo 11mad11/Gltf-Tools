@@ -19,6 +19,7 @@ assume the json is to spec but do not enforce spec
 - EXT_materials_bump
 - KHR_materials_unlit
 - KHR_mesh_quantization
+- KHR_lights_punctual
 
 ### TODO
 - [ ] Look for TODO in the code
@@ -37,6 +38,7 @@ assume the json is to spec but do not enforce spec
 - [ ] Use case exemples
 - [ ] Caches/Optimization
 - [ ] VRM? https://vrm.dev/en/vrm/vrm_about/
+- [x] KHR_lights_punctual
 - [x] Accessor
 - [x] Morph
 - [x] Camera
