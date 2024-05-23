@@ -1,5 +1,6 @@
 import { ClampToEdgeWrapping, LinearFilter, LinearMipmapLinearFilter, LinearMipmapNearestFilter, MirroredRepeatWrapping, NearestFilter, NearestMipmapLinearFilter, NearestMipmapNearestFilter, RepeatWrapping, Texture } from "three";
-import { GLTFParserExtension, GLTFPointer, GLTFResolvedPointer } from "../..";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
+import { GLTFPointer, GLTFResolvedPointer } from "../../GLTFLoader";
 
 const WEBGL_FILTERS = {
     9728: NearestFilter,

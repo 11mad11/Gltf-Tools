@@ -1,6 +1,7 @@
 import { Color, LinearSRGBColorSpace, MeshBasicMaterial } from "three";
-import { GLTFParserExtension, GLTFResolvedPointer } from "..";
+import { GLTFParserExtension } from "../GLTFParserExtension";
 import { MaterialExtension, TextureExtension } from ".";
+import { GLTFResolvedPointer } from "../GLTFLoader";
 
 export class KHR_materials_unlit extends GLTFParserExtension {
     materialModifiers: ((p: GLTFResolvedPointer<MeshBasicMaterial>) => void | Promise<void>)[] = [];

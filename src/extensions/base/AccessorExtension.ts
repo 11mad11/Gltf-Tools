@@ -1,5 +1,5 @@
 import { BufferAttribute, InterleavedBuffer, InterleavedBufferAttribute } from "three";
-import { GLTFParserExtension } from "../..";
+import { GLTFParserExtension } from "../../GLTFParserExtension";
 import { WEBGL_TYPE_SIZES, WEBGL_COMPONENT_TYPES } from "./Const";
 
 export class AccessorExtension extends GLTFParserExtension {

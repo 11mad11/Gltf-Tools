@@ -1,5 +1,6 @@
 import { Color, DirectionalLight, Light, PointLight, SpotLight } from "three";
-import { GLTFParserExtension, GLTFPointer } from "../GLTFLoader";
+import { GLTFPointer } from "../GLTFLoader";
+import { GLTFParserExtension } from "../GLTFParserExtension";
 import { NodeExtension } from "./base/NodeExtension";
 
 export class KHR_lights_punctual extends GLTFParserExtension {

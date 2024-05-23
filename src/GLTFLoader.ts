@@ -1,4 +1,5 @@
 import { PropertyBinding } from "three";
+import { GLTFParserExtension } from "./GLTFParserExtension";
 
 const BINARY_EXTENSION_HEADER_MAGIC = 'glTF';
 const BINARY_EXTENSION_HEADER_LENGTH = 12;
@@ -30,7 +31,7 @@ export class GLTFLoader {
         return this.parseBinary(await (await fetch(url)).arrayBuffer(), ctx)
     }
 
-    parseBinary(buff: ArrayBuffer, ctx: GLTFLoaderCtx) {
+    parseBinary(buff: ArrayBuffer, ctx: Partial<GLTFLoaderCtx> = {}) {
         const headerView = new DataView(buff, 0, BINARY_EXTENSION_HEADER_LENGTH);
         const textDecoder = new TextDecoder();
         const header = {
@@ -44,7 +45,10 @@ export class GLTFLoader {
         else if (header.version < 2.0)
             throw new Error('GLTFLoader: Legacy binary file detected.');
 
-        const parser = new GLTFParser(ctx);
+        const parser = new GLTFParser(Object.assign({
+            extensions: this.extensions,
+            ressourceBaseURL: new URL(import.meta.url)
+        }, ctx));
 
         const chunkContentsLength = header.length - BINARY_EXTENSION_HEADER_LENGTH;
         const chunkView = new DataView(buff, BINARY_EXTENSION_HEADER_LENGTH);
@@ -74,7 +78,7 @@ export class GLTFLoader {
         return parser.parse();
     }
 
-    parseJSON(json: any, ctx: Partial<GLTFLoaderCtx>) {
+    parseJSON(json: any, ctx: Partial<GLTFLoaderCtx> = {}) {
         if (json.asset === undefined || json.asset.version[0] < 2) {
             throw new Error('GLTFLoader: Unsupported asset. glTF versions >=2.0 are supported.');
         }
@@ -184,12 +188,3 @@ export class GLTFParser {
     }
 }
 
-export abstract class GLTFParserExtension {
-    constructor(
-        public parser: GLTFParser
-    ) {
-        this.init();
-    }
-
-    protected init() { }
-}

@@ -1,5 +1,6 @@
 import { LineBasicMaterial, Material, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, PointsMaterial } from "three";
-import { GLTFParserExtension, GLTFPointer } from "../..";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
+import { GLTFPointer } from "../../GLTFLoader";
 
 export class MaterialExtension extends GLTFParserExtension {
 

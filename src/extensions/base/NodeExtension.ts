@@ -1,4 +1,5 @@
-import { GLTFParserExtension, GLTFParser, GLTFPointer, GLTFResolvedPointer } from "../..";
+import { GLTFResolvedPointer, GLTFPointer, GLTFParser } from "../../GLTFLoader";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
 import { Group, Matrix4, Object3D } from "three";
 
 

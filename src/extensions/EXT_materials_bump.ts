@@ -1,5 +1,5 @@
 import { MaterialPbrExtension, TextureExtension } from ".";
-import { GLTFParserExtension } from "..";
+import { GLTFParserExtension } from "../GLTFParserExtension";
 
 export class EXT_materials_bump extends GLTFParserExtension {
 

@@ -1,6 +1,7 @@
 import { Object3D, Scene } from "three";
-import { GLTFParserExtension, GLTFResolvedPointer } from "../..";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
 import { NodeExtension } from "..";
+import { GLTFResolvedPointer } from "../../GLTFLoader";
 
 export class SceneExtension extends GLTFParserExtension {
 

@@ -1,6 +1,7 @@
 import { MeshPhysicalMaterial, MeshStandardMaterial } from "three";
-import { MaterialExtension } from "..";
-import { GLTFParserExtension, GLTFResolvedPointer } from "../..";
+import { MaterialExtension } from "../base/MaterialExtension";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
+import { GLTFResolvedPointer } from "../../GLTFLoader";
 
 export class MaterialPbrExtension extends GLTFParserExtension {
 

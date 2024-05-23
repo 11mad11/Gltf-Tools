@@ -1,5 +1,5 @@
 import { OrthographicCamera, PerspectiveCamera } from "three";
-import { GLTFParserExtension, GLTFParser } from "../..";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
 
 export class CameraExtension extends GLTFParserExtension {
 

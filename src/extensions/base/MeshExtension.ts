@@ -1,8 +1,9 @@
 import { Group, Mesh, BufferGeometry, SkinnedMesh, Object3D, ColorManagement, LinearSRGBColorSpace, LineSegments, Line, LineLoop, Points, TriangleFanDrawMode, TriangleStripDrawMode, Box3, Sphere, Vector3 } from "three";
-import { GLTFParserExtension, GLTFParser, GLTFResolvedPointer, GLTFPointer } from "../..";
+import { GLTFParserExtension } from "../../GLTFParserExtension"
 import { AccessorExtension, MaterialExtension, NodeExtension as NodeExtension } from "..";
 import { toTrianglesDrawMode } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { WEBGL_CONSTANTS, ATTRIBUTES, WEBGL_COMPONENT_TYPES } from "./Const";
+import { GLTFParser, GLTFPointer, GLTFResolvedPointer } from "../../GLTFLoader";
 
 type MeshType = SkinnedMesh | Mesh | LineSegments | Line | LineLoop | Points
 
