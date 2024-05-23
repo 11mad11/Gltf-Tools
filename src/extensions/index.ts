@@ -27,5 +27,4 @@ export async function registerBasic(loader: GLTFLoader){
     loader.register((await import("./base/TextureExtension")).TextureExtension);
 }
 
-export * from './EXT_materials_bump'
 export * from './KHR_materials_unlit'
