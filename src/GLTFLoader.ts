@@ -22,13 +22,13 @@ export class GLTFLoader {
         this.extensions.push(t);
     }
 
-    async load(url: URL, ressourcePath: string = ".") {
+    async load(url: URL, ressourcePath: string = ".",fetchOpt?: RequestInit) {
         const ctx: GLTFLoaderCtx = {
             ressourceBaseURL: new URL(ressourcePath, url),
             extensions: this.extensions
         }
 
-        return this.parseBinary(await (await fetch(url)).arrayBuffer(), ctx)
+        return this.parseBinary(await (await fetch(url,fetchOpt)).arrayBuffer(), ctx)
     }
 
     parseBinary(buff: ArrayBuffer, ctx: Partial<GLTFLoaderCtx> = {}) {
