@@ -1,5 +1,6 @@
 import { PropertyBinding } from "three";
 import { GLTFParserExtension } from "./GLTFParserExtension";
+import { PendingGroup } from "./PendingGroup";
 
 const BINARY_EXTENSION_HEADER_MAGIC = 'glTF';
 const BINARY_EXTENSION_HEADER_LENGTH = 12;
@@ -22,13 +23,13 @@ export class GLTFLoader {
         this.extensions.push(t);
     }
 
-    async load(url: URL, ressourcePath: string = ".",fetchOpt?: RequestInit) {
+    async load(url: URL, ressourcePath: string = ".", fetchOpt?: RequestInit) {
         const ctx: GLTFLoaderCtx = {
             ressourceBaseURL: new URL(ressourcePath, url),
             extensions: this.extensions
         }
 
-        return this.parseBinary(await (await fetch(url,fetchOpt)).arrayBuffer(), ctx)
+        return this.parseBinary(await (await fetch(url, fetchOpt)).arrayBuffer(), ctx)
     }
 
     parseBinary(buff: ArrayBuffer, ctx: Partial<GLTFLoaderCtx> = {}) {
@@ -107,8 +108,9 @@ export class GLTFParser {
 
     private nodeNamesUsed: Record<string, number> = {};
     private extensions = new Map<(new (parser: GLTFParser) => GLTFParserExtension), GLTFParserExtension>()
-    private buffers: (ArrayBuffer)[] = [];
+    private buffers: (Promise<ArrayBuffer>)[] = [];
     public json: any = null
+    public readonly pending = new PendingGroup();
 
     public events = {
         preparse: [] as (() => void | Promise<void>)[],
@@ -122,6 +124,9 @@ export class GLTFParser {
         for (const extention of ctx.extensions) {
             const instance = new extention(this);
             this.extensions.set(extention, instance);
+        }
+        for (const extention of ctx.extensions) {
+            GLTFParserExtension.init(this.extensions.get(extention));
         }
     }
 
@@ -168,12 +173,15 @@ export class GLTFParser {
         if (this.buffers[i])
             return this.buffers[i];
 
-        if (this.json.buffers[i].type && this.json.buffers[i].type !== 'arraybuffer')
-            throw new Error('GLTFLoader: ' + this.json.buffers[i].type + ' buffer type is not supported.');
+        this.buffers[i] = (async () => {
+            if (this.json.buffers[i].type && this.json.buffers[i].type !== 'arraybuffer')
+                throw new Error('GLTFLoader: ' + this.json.buffers[i].type + ' buffer type is not supported.');
 
-        const result = await fetch(new URL(this.json.buffers[i].uri, this.ctx.ressourceBaseURL));
+            const result = await fetch(new URL(this.json.buffers[i].uri, this.ctx.ressourceBaseURL));
+            return result.arrayBuffer();
+        })();
 
-        return this.buffers[i] = await result.arrayBuffer();
+        return this.buffers[i]
     }
 
     async getBufferView(i: number) {
@@ -184,7 +192,7 @@ export class GLTFParser {
     }
 
     setBuffer(i: number, buff: ArrayBuffer) {
-        this.buffers[i] = buff;
+        this.buffers[i] = Promise.resolve(buff);
     }
 }
 

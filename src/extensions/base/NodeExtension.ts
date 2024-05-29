@@ -1,39 +1,22 @@
-import { GLTFResolvedPointer, GLTFPointer, GLTFParser } from "../../GLTFLoader";
-import { GLTFParserExtension } from "../../GLTFParserExtension"
+import { GLTFParserLoaderExtension } from "../../tools/GLTFParserExtension"
 import { Group, Matrix4, Object3D } from "three";
 
 
+export class NodeExtension extends GLTFParserLoaderExtension<Object3D> {
 
-export class NodeExtension extends GLTFParserExtension {
+    protected cached: boolean = false;
 
-    /**
-     * args: CreationEvent, type object, GLTFParser
-     */
-    nodeCreated: ((p: GLTFResolvedPointer<Object3D>) => void | Promise<void>)[] = [];
-    private cache: Object3D[] = [];
-
-    nodeLoaders: ((p: GLTFPointer) => Object3D | Promise<Object3D>)[] = [
-        ({ raw }) => {
-            const count = raw.children?.length || 0;
-            const obj = count > 0 ? new Group() : new Object3D();
-            return obj;
-        }
-    ]
-
-    constructor(parser: GLTFParser) {
-        super(parser);
+    getRaw(index: number) {
+        return this.parser.json.nodes[index];
     }
 
-    async loadNode(index: number) {
-        if (this.cache[index])
-            return this.cache[index];
+    load(raw) {
+        const count = raw.children?.length || 0;
+        const obj = count > 0 ? new Group() : new Object3D();
+        return obj;
+    }
 
-        const raw = this.parser.json.nodes[index];
-        const obj = await this.createNode(index);
-
-        if (raw.name) obj.name = this.parser.createUniqueName(raw.name);
-        if (raw.extras) Object.assign(obj.userData, raw.extras);
-
+    async modify(raw, obj) {
         if (raw.matrix !== undefined) {
             const matrix = new Matrix4();
             matrix.fromArray(raw.matrix);
@@ -47,24 +30,11 @@ export class NodeExtension extends GLTFParserExtension {
                 obj.scale.fromArray(raw.scale);
         }
 
-        await this.parser.invokeAll(this.nodeCreated, { index, raw, value: obj, type: "nodes" });
-
-        this.cache[index] = obj;
-
-        Promise.all((raw.children || []).map(async i => {
-            const child = await this.loadNode(i);
+        await Promise.all((raw.children as any[] || []).map(async i => {
+            const child = await this.getLoaded(i);
             obj.add(child);
         }));
 
         return obj;
     }
-
-    private async createNode(index: number) {
-        for (const l of this.nodeLoaders) {
-            const r = await l({ index, raw: this.parser.json.nodes[index], type: "nodes" });
-            if (r)
-                return r;
-        }
-    }
-
 }

@@ -1,7 +1,10 @@
 // rollup.config.js
 import typescript from "@rollup/plugin-typescript";
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import serve from 'rollup-plugin-serve';
+import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
 
-export default [
+const config = [
     {
         input: "src/index.ts",
         output: [
@@ -17,15 +20,55 @@ export default [
                 format: "umd",
                 sourcemap: false,
                 exports: "named",
-            },
+            }
+        ],
+        external: ["three"],
+        plugins: [
+            typescript({
+                tsconfig: "./tsconfig.json",
+                sourceMap: true,
+                declaration: true,
+                declarationDir: "./lib"
+            }),
+            nodeResolve()
+        ],
+    },
+];
+
+if (process.env.EXAMPLE)
+    config.push({
+        input: "src/example.ts",
+        output: [
+            {
+                dir: "lib",
+                format: "es",
+                sourcemap: true,
+                exports: "named"
+            }
         ],
         plugins: [
             typescript({
                 tsconfig: "./tsconfig.json",
-                sourceMap: false,
-                declaration: true,
-                declarationDir: "./lib"
+                sourceMap: true
             }),
+            nodeResolve(),
+            process.env.SERVE && serve({
+                contentBase: [
+                    'lib',
+                    'examples',
+                    '.'//needed because the sourcemap point to ./src/file.ts
+                ],
+                // Options used in setting up server
+                host: '0.0.0.0',
+                port: 10001,
+                headers: {
+                    "Access-Control-Allow-Headers": "*"
+                }
+            }),
+            dynamicImportVars({
+                // options
+            })
         ],
-    },
-];
+    })
+
+export default config;

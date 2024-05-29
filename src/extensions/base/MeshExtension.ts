@@ -1,9 +1,13 @@
 import { Group, Mesh, BufferGeometry, SkinnedMesh, Object3D, ColorManagement, LinearSRGBColorSpace, LineSegments, Line, LineLoop, Points, TriangleFanDrawMode, TriangleStripDrawMode, Box3, Sphere, Vector3 } from "three";
-import { GLTFParserExtension } from "../../GLTFParserExtension"
-import { AccessorExtension, MaterialExtension, NodeExtension as NodeExtension } from "..";
+import { GLTFParserExtension } from "../../tools/GLTFParserExtension";
 import { toTrianglesDrawMode } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { WEBGL_CONSTANTS, ATTRIBUTES, WEBGL_COMPONENT_TYPES } from "./Const";
-import { GLTFParser, GLTFPointer, GLTFResolvedPointer } from "../../GLTFLoader";
+import { GLTFPointer, GLTFResolvedPointer } from "../../tools/GLTFLoader";
+import { MaterialPointExtension } from "./MaterialPointExtension";
+import { MateriaLineExtension } from "./MateriaLineExtension";
+import { AccessorExtension } from "./AccessorExtension";
+import { MaterialTriangleExtension } from "./MaterialTriangleExtension";
+import { NodeExtension } from "./NodeExtension";
 
 type MeshType = SkinnedMesh | Mesh | LineSegments | Line | LineLoop | Points
 
@@ -22,17 +26,20 @@ export class MeshExtension extends GLTFParserExtension {
      */
     public primitiveLoaders: ((raw: any, mesh: GLTFPointer) => MeshType | Promise<MeshType>)[] = [(raw, mesh) => this.loadPrimitive(raw, mesh.raw.isSkinnedMesh)];
 
-    constructor(parser: GLTFParser) {
-        super(parser);
+    init() {
+        const that = this;
 
-        parser.getExtension(NodeExtension).nodeLoaders.unshift(async ({ raw, index }) => {
-            if (raw.mesh === undefined)
-                return;
+        that.parser.getExtension(NodeExtension).loaders.add({
+            priority: -1,
+            async load(raw) {
+                if (raw.mesh === undefined)
+                    return null;
 
-            const mesh = await this.loadMesh(raw.mesh);
-            this.parser.invokeAll(this.nodeMeshCreated, { index, raw, value: mesh, type: "nodes" });
+                const mesh = await that.loadMesh(raw.mesh);
+                await that.parser.invokeAll(that.nodeMeshCreated, { index: 0, raw, value: mesh, type: "nodes" });
 
-            return mesh
+                return mesh
+            },
         });
     }
 
@@ -68,7 +75,6 @@ export class MeshExtension extends GLTFParserExtension {
     }
 
     async loadPrimitive(raw: any, isSkinnedMesh: boolean): Promise<MeshType> {
-        const matExt = this.parser.getExtension(MaterialExtension);
         const geometry = this.parser.invokeOne(this.geometryLoaders, raw);
 
         let mesh: MeshType;
@@ -79,7 +85,7 @@ export class MeshExtension extends GLTFParserExtension {
             raw.mode === undefined) {
 
             // .isSkinnedMesh isn't in glTF spec. See ._markDefs()
-            const material = matExt.loadMaterial(raw.material, "triangles");
+            const material = raw.material!==undefined ? this.parser.getExtension(MaterialTriangleExtension).getLoaded(raw.material) : undefined;
             mesh = isSkinnedMesh === true ? new SkinnedMesh(await geometry, await material) : new Mesh(await geometry, await material);
 
             if (mesh instanceof SkinnedMesh) {
@@ -94,16 +100,16 @@ export class MeshExtension extends GLTFParserExtension {
             }
         }
         else if (raw.mode === WEBGL_CONSTANTS.LINES)
-            mesh = new LineSegments(await geometry, await matExt.loadMaterial(raw.material, "lines"));
+            mesh = new LineSegments(await geometry, await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
 
         else if (raw.mode === WEBGL_CONSTANTS.LINE_STRIP)
-            mesh = new Line(await geometry, await matExt.loadMaterial(raw.material, "lines"));
+            mesh = new Line(await geometry, await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
 
         else if (raw.mode === WEBGL_CONSTANTS.LINE_LOOP)
-            mesh = new LineLoop(await geometry, await matExt.loadMaterial(raw.material, "lines"));
+            mesh = new LineLoop(await geometry, await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
 
         else if (raw.mode === WEBGL_CONSTANTS.POINTS)
-            mesh = new Points(await geometry, await matExt.loadMaterial(raw.material, "points"));
+            mesh = new Points(await geometry, await this.parser.getExtension(MaterialPointExtension).getLoaded(raw.material));
 
         else
             throw new Error('GLTFLoader: Primitive mode unsupported: ' + raw.mode);
@@ -120,7 +126,7 @@ export class MeshExtension extends GLTFParserExtension {
         const pending: Promise<any>[] = [];
 
         const assignAttributeAccessor = async (accessorIndex, attributeName) => {
-            geometry.setAttribute(attributeName, await this.parser.getExtension(AccessorExtension).loadAccessor(accessorIndex));
+            geometry.setAttribute(attributeName, await this.parser.getExtension(AccessorExtension).getLoaded(accessorIndex));
         }
 
         for (const gltfAttributeName in attributes) {
@@ -129,7 +135,7 @@ export class MeshExtension extends GLTFParserExtension {
         }
 
         if (rawPrimitive.indices !== undefined && !geometry.index) {
-            pending.push((async () => geometry.setIndex(await this.parser.getExtension(AccessorExtension).loadAccessor(rawPrimitive.indices)))());
+            pending.push((async () => geometry.setIndex(await this.parser.getExtension(AccessorExtension).getLoaded(rawPrimitive.indices) as any))());
         }
 
         if (ColorManagement.workingColorSpace !== LinearSRGBColorSpace && 'COLOR_0' in attributes)
@@ -159,7 +165,11 @@ export class MeshExtension extends GLTFParserExtension {
             if (hasMorphPosition && hasMorphNormal && hasMorphColor) break;
         }
 
-        if (!hasMorphPosition && !hasMorphNormal && !hasMorphColor) return Promise.resolve(geometry);
+        if (!hasMorphPosition && !hasMorphNormal && !hasMorphColor) return geometry;
+
+        if (hasMorphPosition) geometry.morphAttributes.position = [];
+        if (hasMorphNormal) geometry.morphAttributes.normal = [];
+        if (hasMorphColor) geometry.morphAttributes.color = [];
 
         const pending = [];
         for (let i = 0, il = targets.length; i < il; i++) {
@@ -167,19 +177,19 @@ export class MeshExtension extends GLTFParserExtension {
 
             if (hasMorphPosition)
                 if (target.POSITION !== undefined)
-                    pending.push((async () => geometry.morphAttributes.position[i] = await this.parser.getExtension(AccessorExtension).loadAccessor(target.POSITION))());
+                    pending.push((async () => geometry.morphAttributes.position[i] = await this.parser.getExtension(AccessorExtension).getLoaded(target.POSITION))());
                 else
                     geometry.morphAttributes.position[i] = geometry.attributes.position
 
             if (hasMorphNormal)
                 if (target.NORMAL !== undefined)
-                    pending.push((async () => geometry.morphAttributes.normal[i] = await this.parser.getExtension(AccessorExtension).loadAccessor(target.NORMAL))());
+                    pending.push((async () => geometry.morphAttributes.normal[i] = await this.parser.getExtension(AccessorExtension).getLoaded(target.NORMAL))());
                 else
                     geometry.morphAttributes.normal[i] = geometry.attributes.normal
 
             if (hasMorphColor)
                 if (target.COLOR_0 !== undefined)
-                    pending.push((async () => geometry.morphAttributes.color[i] = await this.parser.getExtension(AccessorExtension).loadAccessor(target.COLOR_0))());
+                    pending.push((async () => geometry.morphAttributes.color[i] = await this.parser.getExtension(AccessorExtension).getLoaded(target.COLOR_0))());
                 else
                     geometry.morphAttributes.color[i] = geometry.attributes.color
         }

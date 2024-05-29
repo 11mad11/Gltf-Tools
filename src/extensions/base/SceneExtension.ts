@@ -1,27 +1,21 @@
-import { Object3D, Scene } from "three";
-import { GLTFParserExtension } from "../../GLTFParserExtension"
-import { NodeExtension } from "..";
-import { GLTFResolvedPointer } from "../../GLTFLoader";
+import { Scene } from "three";
+import { GLTFParserLoaderExtension } from "../../tools/GLTFParserExtension"
+import { NodeExtension } from "./NodeExtension";
 
-export class SceneExtension extends GLTFParserExtension {
+export class SceneExtension extends GLTFParserLoaderExtension<Scene> {
 
-    sceneModifiers: ((p: GLTFResolvedPointer<Scene>, nodes: Object3D[]) => void | Promise<void>)[] = [];
+    getRaw(index: number) {
+        return this.parser.json.scenes[index];
+    }
 
-    async loadScene(index: number): Promise<Scene> {
+    async load(raw) {
         const nodeExt = this.parser.getExtension(NodeExtension);
-        const raw = this.parser.json.scenes[index];
         const scene = new Scene();
 
-        const nodes = await Promise.all((raw.nodes as number[]).map(async i => {
-            const node = await nodeExt.loadNode(i);
+        await Promise.all((raw.nodes as number[]).map(async i => {
+            const node = await nodeExt.getLoaded(i);
             scene.add(node);
-            return node;
         }));
-
-        if (raw.name) scene.name = this.parser.createUniqueName(raw.name);
-        if (raw.extras) Object.assign(scene.userData, raw.extras);
-
-        this.parser.invokeAll(this.sceneModifiers, { index, raw, value: scene, type: "scenes" }, nodes);
 
         return scene;
     }
@@ -29,7 +23,17 @@ export class SceneExtension extends GLTFParserExtension {
     loadDefaultScene() {
         if (this.parser.json.scene === undefined)
             return null;
-        return this.loadScene(this.parser.json.scene);
+        return this.getLoaded(this.parser.json.scene);
+    }
+
+    get defaultSceneIndex() {
+        return this.parser.json.scene;
+    }
+
+    loadAllScene() {
+        if (this.parser.json.scenes === undefined)
+            return null;
+        return Promise.all((this.parser.json.scenes as any[]).map((_, i) => this.getLoaded(i)));
     }
 
 }

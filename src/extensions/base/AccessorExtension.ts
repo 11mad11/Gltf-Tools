@@ -1,19 +1,22 @@
 import { BufferAttribute, InterleavedBuffer, InterleavedBufferAttribute } from "three";
-import { GLTFParserExtension } from "../../GLTFParserExtension";
-import { WEBGL_TYPE_SIZES, WEBGL_COMPONENT_TYPES } from "./Const";
+import { GLTFParserLoaderExtension } from "../../tools/GLTFParserExtension";
+import { WEBGL_TYPE_SIZES, WEBGL_COMPONENT_TYPES, getNormalizedComponentScale } from "./Const";
 
-export class AccessorExtension extends GLTFParserExtension {
+export class AccessorExtension extends GLTFParserLoaderExtension<BufferAttribute | InterleavedBufferAttribute> {
 
-    async loadAccessor(index: number) {
-        const accessorDef = this.parser.json.accessors[index];
+    getRaw(index: number) {
+        return this.parser.json.accessors[index];
+    }
 
+    async load(accessorDef) {
         if (accessorDef.bufferView === undefined && accessorDef.sparse === undefined) {
             const itemSize = WEBGL_TYPE_SIZES[accessorDef.type as keyof typeof WEBGL_TYPE_SIZES];
             const TypedArray = WEBGL_COMPONENT_TYPES[accessorDef.componentType as keyof typeof WEBGL_COMPONENT_TYPES];
             const normalized = accessorDef.normalized === true;
 
             const array = new TypedArray(accessorDef.count * itemSize);
-            return new BufferAttribute(array, itemSize, normalized);
+            const buf = new BufferAttribute(array, itemSize, normalized);
+            return buf;
         }
 
         const bufferView = accessorDef.bufferView === undefined ? null : this.parser.getBufferView(accessorDef.bufferView);
@@ -29,7 +32,8 @@ export class AccessorExtension extends GLTFParserExtension {
         const byteOffset = accessorDef.byteOffset || 0;
         const byteStride = accessorDef.bufferView !== undefined ? this.parser.json.bufferViews[accessorDef.bufferView].byteStride : undefined;
         const normalized = accessorDef.normalized === true;
-        let array, bufferAttribute;
+        let array;
+        let bufferAttribute: BufferAttribute | InterleavedBufferAttribute;
 
         // The buffer is not interleaved if the stride is the item size in bytes.
         if (byteStride && byteStride !== itemBytes) {
@@ -81,4 +85,18 @@ export class AccessorExtension extends GLTFParserExtension {
         return bufferAttribute;
     }
 
+    getArrayFromAccessor(accessor: BufferAttribute | InterleavedBufferAttribute) {
+        let outputArray = accessor.array;
+        if (accessor.normalized) {
+            const scale = getNormalizedComponentScale(outputArray.constructor as any);
+            const scaled = new Float32Array(outputArray.length);
+            for (let j = 0, jl = outputArray.length; j < jl; j++) {
+                scaled[j] = outputArray[j] * scale;
+            }
+            outputArray = scaled;
+        }
+
+        return outputArray;
+
+    }
 }

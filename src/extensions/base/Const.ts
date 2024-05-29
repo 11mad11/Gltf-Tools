@@ -1,4 +1,4 @@
-import { InterpolateLinear, InterpolateDiscrete } from "three";
+import { InterpolateLinear, InterpolateDiscrete, ClampToEdgeWrapping, LinearFilter, LinearMipmapLinearFilter, LinearMipmapNearestFilter, MirroredRepeatWrapping, NearestFilter, NearestMipmapLinearFilter, NearestMipmapNearestFilter, RepeatWrapping } from "three";
 
 export const WEBGL_CONSTANTS = {
     FLOAT: 5126,
@@ -73,3 +73,35 @@ export const ALPHA_MODES = {
     MASK: 'MASK',
     BLEND: 'BLEND'
 } as const;
+
+export const WEBGL_FILTERS = {
+    9728: NearestFilter,
+    9729: LinearFilter,
+    9984: NearestMipmapNearestFilter,
+    9985: LinearMipmapNearestFilter,
+    9986: NearestMipmapLinearFilter,
+    9987: LinearMipmapLinearFilter
+} as const;
+
+export const WEBGL_WRAPPINGS = {
+    33071: ClampToEdgeWrapping,
+    33648: MirroredRepeatWrapping,
+    10497: RepeatWrapping
+} as const;
+
+export function getNormalizedComponentScale(constructor: typeof Int8Array | typeof Uint8Array | typeof Int16Array | typeof Uint16Array) {
+    // Reference:
+    // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_mesh_quantization#encoding-quantized-data
+    switch (constructor) {
+        case Int8Array:
+            return 1 / 127;
+        case Uint8Array:
+            return 1 / 255;
+        case Int16Array:
+            return 1 / 32767;
+        case Uint16Array:
+            return 1 / 65535;
+        default:
+            throw new Error('THREE.GLTFLoader: Unsupported normalized accessor component type.');
+    }
+}

@@ -1,29 +1,48 @@
-import { OrthographicCamera, PerspectiveCamera } from "three";
-import { GLTFParserExtension } from "../../GLTFParserExtension"
+import { Camera, OrthographicCamera, PerspectiveCamera } from "three";
+import { GLTFParserLoaderExtension } from "../../tools/GLTFParserExtension"
+import { NodeExtension } from "./NodeExtension";
 
-export class CameraExtension extends GLTFParserExtension {
+export class CameraExtension extends GLTFParserLoaderExtension<Camera> {
 
-    cache: (PerspectiveCamera | OrthographicCamera)[] = [];
+    protected init(): void {
+        const that = this;
 
-    loadCamera(index: number) {
-        if (this.cache[index])
-            return this.cache[index];
-
-        const raw = this.parser.json.camera[index];
-        const cam = this.createCamera(raw);
-
-        if (raw.name) cam.name = raw.name;
-        if (raw.extras) Object.assign(cam.userData, raw.extras);
-
-        return this.cache[index] = cam;
+        this.parser.getExtension(NodeExtension).loaders.add({
+            priority: -1,
+            load(raw) {
+                if (raw.camera !== undefined)
+                    return that.getLoaded(raw.camera);
+            },
+        })
     }
 
-    createCamera(raw: any) {
+    getRaw(index: number) {
+        return this.parser.json.cameras[index];
+    }
+
+    async loadAllCamera() {
+        if(!this.parser.json.cameras)
+            return null;
+        return Promise.all((this.parser.json.cameras as any[])?.map((v, i) => {
+            return this.getLoaded(i);
+        }));
+    }
+
+    loadDefaultCamera() {
+        if (this.parser.json.camera === undefined)
+            return null;
+        return this.getLoaded(0);
+    }
+
+    get defaultCameraIndex() {
+        return 0;
+    }
+
+    async load(raw) {
         const params = raw[raw.type];
         if (raw.type === 'perspective')
             return new PerspectiveCamera(params.yfov * 180 / Math.PI, params.aspectRatio || 1, params.znear || 1, params.zfar || 2e6);
         else if (raw.type === 'orthographic')
             return new OrthographicCamera(- params.xmag, params.xmag, params.ymag, - params.ymag, params.znear, params.zfar);
-        throw new Error(`GLTFLoader: Camera type '${raw.type}'not supported`);
     }
 }
