@@ -4,8 +4,10 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 import serve from 'rollup-plugin-serve';
 import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
 
-const config = [
-    {
+const config = []
+
+if (!process.env.ONLY_EXAMPLE)
+    config.push({
         input: "src/index.ts",
         output: [
             {
@@ -32,10 +34,9 @@ const config = [
             }),
             nodeResolve()
         ],
-    },
-];
+    });
 
-if (process.env.EXAMPLE)
+if (process.env.EXAMPLE || process.env.ONLY_EXAMPLE)
     config.push({
         input: "src/example.ts",
         output: [
