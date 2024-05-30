@@ -63,8 +63,11 @@ const configs: Record<string, undefined | Config<any>> = {
     "City": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/VirtualCity/glTF-Binary/VirtualCity.glb"
     },
-    "CesiumMan":{
+    "CesiumMan": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/CesiumMan/glTF-Binary/CesiumMan.glb"
+    },
+    "AlphaBlendModeTest": {
+        url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/AlphaBlendModeTest/glTF-Binary/AlphaBlendModeTest.glb"
     }
 } as const
 {
@@ -77,11 +80,21 @@ const configs: Record<string, undefined | Config<any>> = {
     });
 }
 
-const config = configs[(location.hash || "#Avocado.glb").substring(1)];
+let config = configs[(location.hash || "#Avocado.glb").substring(1)];
 
 if (!config) {
-    importExample(location.hash.substring(1));
-} else {
+    try {
+        await importExample(location.hash.substring(1));
+    } catch (e: any) {
+        if ("message" in e && (e.message as string).startsWith("Unknown variable dynamic import")) {
+            config = { url: location.hash.substring(1) }
+        } else {
+            console.error(e);
+        }
+    }
+}
+
+if (config) {
     const viewer = new Viewer();
     window.viewer = viewer;
     viewer.mount(document.querySelector(".content"));
@@ -101,7 +114,7 @@ if (!config) {
     console.log(config);
     const ctx = await config.setup?.(parser, viewer);
 
-    viewer.loop(()=>config.render?.(ctx));
+    viewer.loop(() => config.render?.(ctx));
 }
 
 
