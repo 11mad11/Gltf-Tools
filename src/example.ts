@@ -68,6 +68,9 @@ const configs: Record<string, undefined | Config<any>> = {
     },
     "AlphaBlendModeTest": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/AlphaBlendModeTest/glTF-Binary/AlphaBlendModeTest.glb"
+    },
+    "MorphStressTest": {
+        url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/MorphStressTest/glTF-Binary/MorphStressTest.glb"
     }
 } as const
 {

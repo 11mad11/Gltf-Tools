@@ -24,9 +24,11 @@ export class Viewer {
 
     cameras: Camera[] = [];
     scenes: Scene[] = [];
+    animations: AnimationClip[] = [];
 
     _sceneIndex = 0;
     _cameraIndex = -1;
+    _animationIndex = -1;
 
     constructor(config?: Config) {
         config = mergeDeep(config ?? {}, defaultConfig);
@@ -41,11 +43,93 @@ export class Viewer {
 
         this.renderer.domElement.addEventListener("dblclick", () => {
             this.selectCamera(this._cameraIndex >= this.cameras.length ? -1 : this._cameraIndex + 1);
-        })
+        });
+
+        this.initContextMenu();
 
         if (localStorage.getItem("inspect") === "true")
             //@ts-ignore
             spector.captureCanvas(renderer.domElement);
+    }
+
+    private initContextMenu() {
+        const contextmenuDiv = document.createElement('div');
+        document.body.append(contextmenuDiv);
+        Object.assign(contextmenuDiv.style, {
+            position: 'absolute',
+            border: "solid 1px black",
+            display: "none",
+            "flex-direction": "column",
+            "max-height": "50vh",
+            "overflow-y": "scroll"
+        })
+        contextmenuDiv.oncontextmenu = e => e.preventDefault();
+
+        function btn(txt: string, cb: () => void) {
+            const lbl = document.createElement("span");
+            contextmenuDiv.append(lbl);
+            Object.assign(lbl.style, {
+
+            });
+            lbl.textContent = txt;
+            lbl.onclick = () => {
+                contextmenuDiv.style.display = "none";
+                cb();
+            };
+            lbl.oncontextmenu = e => e.preventDefault();
+        }
+
+        let moved = false;
+        this.renderer.domElement.addEventListener("mousedown", (e) => {
+            contextmenuDiv.style.display = "none";
+            moved = false;
+        });
+        this.renderer.domElement.addEventListener("mouseup", (e) => {
+            if (moved || e.button != 2)
+                return;
+            contextmenuDiv.innerHTML = "";
+
+            if (this._animationIndex !== -1)
+                btn("Stop Animation", () => {
+                    this.selectAnimation(-1);
+                });
+            for (let i = 0; i < this.animations.length; i++) {
+                if (i === this._animationIndex)
+                    continue;
+                btn("Animation: " + (this.animations[i].name || i), () => {
+                    this.selectAnimation(i);
+                });
+            }
+
+            for (let i = 0; i < this.scenes.length; i++) {
+                if (i === this._sceneIndex)
+                    continue;
+                btn("Scene: " + (this.scenes[i].name || i), () => {
+                    this.selectScene(i);
+                });
+            }
+            if (this._animationIndex !== -1)
+                btn("Orbit Camera", () => {
+                    this.selectCamera(-1);
+                });
+            for (let i = 0; i < this.cameras.length; i++) {
+                if (i === this._cameraIndex)
+                    continue;
+                btn("Camera: " + (this.cameras[i].name || i), () => {
+                    this.selectCamera(i);
+                });
+            }
+
+            contextmenuDiv.style.display = "flex";
+            contextmenuDiv.style.top = e.clientY + "px";
+            contextmenuDiv.style.left = e.clientX + "px";
+        });
+        this.renderer.domElement.addEventListener("mousemove", () => {
+            moved = true;
+        });
+        this.renderer.domElement.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+        });
     }
 
     clear() {
@@ -78,12 +162,12 @@ export class Viewer {
         setTimeout(() => this.resize(), 0);
     }
 
-    async loadFromParser(parser: Promise<GLTFParser> | GLTFParser,animation = true) {
+    async loadFromParser(parser: Promise<GLTFParser> | GLTFParser, animation = true) {
         this.clear();
         parser = await parser;
         const scenes = await parser.getExtension(Extensions.SceneExtension).loadAllScene() ?? [];
         const cameras = await parser.getExtension(Extensions.CameraExtension).loadAllCamera() ?? [];
-        
+
         this.load({
             scenes,
             cameras,
@@ -92,9 +176,9 @@ export class Viewer {
         });
 
         if (animation && parser.json.animations?.length) {
-            const clip = await parser.getExtension(Extensions.AnimationExtension).getLoaded(0);console.log("Asd");
-            const action = this.mixer.clipAction(clip, this.scenes[this._sceneIndex]);
-            action.play();
+            const animations = (parser.json.animations as any[]).map((_, i) => parser.getExtension(Extensions.AnimationExtension).getLoaded(i))
+            this.loadAnimations(await Promise.all(animations));
+            this.selectAnimation(0);
         }
 
         this.resize();
@@ -134,22 +218,50 @@ export class Viewer {
 
         this.selectCamera(cfg.currentCamera > -1 ? cfg.currentCamera : -1);
         this.selectScene(cfg.currentScene ?? 0);
+        this.selectAnimation(-1);
+    }
+
+    loadAnimations(anims: AnimationClip[]) {
+        this.animations = anims;
+        this._animationIndex = -1;
+        this.mixer.stopAllAction();
+    }
+
+    selectAnimation(i: number) {
+        this._animationIndex = i;
+        this.mixer.stopAllAction();
+        if (!this.animations[i])
+            return;
+        const action = this.mixer.clipAction(this.animations[i], this.scenes[this._sceneIndex]);
+        action.play();
     }
 
     selectScene(i: number) {
+        this.selectAnimation(-1);
         const scene = this.scenes[i];
-        const sphere = new Sphere(undefined,0.0001);
+        const sphere = new Sphere(undefined, 0.0001);
 
         scene.traverse((n) => {
+            sphere.center.add(n.position);
+            sphere.center.divideScalar(2)
+        });
+
+        scene.traverse((n) => {
+            if (n.constructor.name.indexOf("Helper") !== -1)
+                return;
             if (n instanceof Mesh && n.geometry instanceof BufferGeometry) {
                 n.geometry.computeBoundingSphere();
-                sphere.union(n.geometry.boundingSphere.clone().translate(n.position));
+                const bs = n.geometry.boundingSphere.clone().translate(n.position);
+                console.log(n.scale);
+                sphere.union(bs);
             }
             return n;
         });
 
+        console.log(sphere);
+
         this.control.target.copy(sphere.center);
-        this.control.minDistance = sphere.radius * 1.5;
+        this.control.minDistance = (1 / (sphere.radius + 1)) * 0.5 + sphere.radius;
         this.control.update();
         this.control.minDistance = 0;
     }
@@ -162,7 +274,6 @@ export class Viewer {
         const scene = this.scenes[this._sceneIndex];
         if (!scene)
             return;
-        this.mixer.update(this.clock.getDelta());
         this.control.update();
         this.renderer.render(scene, this.cameras[this._cameraIndex] ?? this.camera);
     }
@@ -171,6 +282,7 @@ export class Viewer {
         if (!this.renderer.domElement?.checkVisibility?.())
             return;
         fn();
+        this.mixer.update(this.clock.getDelta());
         this.render();
         requestAnimationFrame(() => this.loop(fn));
     }
