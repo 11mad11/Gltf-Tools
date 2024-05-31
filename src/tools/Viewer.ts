@@ -89,6 +89,13 @@ export class Viewer {
                 return;
             contextmenuDiv.innerHTML = "";
 
+            btn("Toggle Debug", () => {
+                this.scenes[this._sceneIndex].traverse((n) => {
+                    if (n.constructor.name.indexOf("Helper") !== -1 || n.type.indexOf("Helper") !== -1)
+                        n.visible = !n.visible;
+                })
+            });
+
             if (this._animationIndex !== -1)
                 btn("Stop Animation", () => {
                     this.selectAnimation(-1);
@@ -209,8 +216,14 @@ export class Viewer {
                     todos.push(() => scene.add(new CameraHelper(n)))
                 }
             });
+
             for (const t of todos)
                 t();
+
+            scene.traverse((n) => {
+                if (n.constructor.name.indexOf("Helper") !== -1 || n.type.indexOf("Helper") !== -1)
+                    n.visible = !n.visible;
+            })
 
             if (doLight)
                 scene.add(this.ambiant.clone());
