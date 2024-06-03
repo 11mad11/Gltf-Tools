@@ -63,6 +63,9 @@ const configs: Record<string, undefined | Config<any>> = {
     "City": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/VirtualCity/glTF-Binary/VirtualCity.glb"
     },
+    "CityFixed": {
+        import: () => import("./examples/cityFixed")
+    },
     "CesiumMan": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/CesiumMan/glTF-Binary/CesiumMan.glb"
     },
@@ -71,6 +74,9 @@ const configs: Record<string, undefined | Config<any>> = {
     },
     "MorphStressTest": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/MorphStressTest/glTF-Binary/MorphStressTest.glb"
+    },
+    "MeshPrimitiveModes": {
+        url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/MeshPrimitiveModes/glTF-Embedded/MeshPrimitiveModes.gltf"
     }
 } as const
 {
