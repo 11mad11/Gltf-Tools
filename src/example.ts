@@ -1,9 +1,8 @@
-import { AmbientLight, Box3, BufferGeometry, DirectionalLight, DirectionalLightHelper, Light, Mesh, PerspectiveCamera, PointLight, PointLightHelper, Sphere, SpotLight, SpotLightHelper, Vector2, Vector3, WebGLRenderer } from "three";
 import { Extensions, Viewer } from ".";
 import { GLTFLoader, GLTFParser } from "./tools/GLTFLoader";
 
 function importExample(example: string) {
-    return import(`./examples/${example}.ts`).then(() => { });
+    return import(`./examples/${example}.ts`);
 }
 
 
@@ -16,7 +15,9 @@ type Config<T> = {
     url: string,
     setup?(parser: GLTFParser, viewer: Viewer): T | Promise<T>
     render?(ctx: Awaited<T>): void
-}
+} | {
+    import: () => Promise<any>
+};
 const c = <T>(c: Config<T>) => c
 
 const commit = "5460021c0abb8874826652a3853dd0be0ba28fe2";
@@ -91,19 +92,24 @@ const configs: Record<string, undefined | Config<any>> = {
 
 let config = configs[(location.hash || "#Avocado.glb").substring(1)];
 
-if (!config) {
-    try {
-        await importExample(location.hash.substring(1));
-    } catch (e: any) {
-        if ("message" in e && (e.message as string).startsWith("Unknown variable dynamic import")) {
-            config = { url: location.hash.substring(1) }
-        } else {
-            console.error(e);
-        }
+(async () => {
+    if (!config) {
+        await importExample(location.hash.substring(1)).catch((e) => {
+            if ("message" in e && (e.message as string).startsWith("Unknown variable dynamic import")) {
+                console.log("No example found trying as an URL");
+                loadFromUrl({ url: location.hash.substring(1) });
+            } else {
+                throw e;
+            }
+        });
+    } else if ("import" in config) {
+        Object.assign(window, await config?.import?.());
+    } else if ("url" in config) {
+        await loadFromUrl(config);
     }
-}
+})();
 
-if (config) {
+async function loadFromUrl(config: Extract<Config<any>, { url }>) {
     const viewer = new Viewer();
     window.viewer = viewer;
     viewer.mount(document.querySelector(".content"));
