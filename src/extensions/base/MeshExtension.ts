@@ -85,7 +85,7 @@ export class MeshExtension extends GLTFParserExtension {
             raw.mode === undefined) {
 
             // .isSkinnedMesh isn't in glTF spec. See ._markDefs()
-            const material = raw.material!==undefined ? this.parser.getExtension(MaterialTriangleExtension).getLoaded(raw.material) : undefined;
+            const material = raw.material !== undefined ? this.parser.getExtension(MaterialTriangleExtension).getLoaded(raw.material) : undefined;
             mesh = isSkinnedMesh === true ? new SkinnedMesh(await geometry, await material) : new Mesh(await geometry, await material);
 
             if (mesh instanceof SkinnedMesh) {
@@ -100,16 +100,16 @@ export class MeshExtension extends GLTFParserExtension {
             }
         }
         else if (raw.mode === WEBGL_CONSTANTS.LINES)
-            mesh = new LineSegments(await geometry, await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
+            mesh = new LineSegments(await geometry, raw.material === undefined ? undefined : await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
 
         else if (raw.mode === WEBGL_CONSTANTS.LINE_STRIP)
-            mesh = new Line(await geometry, await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
+            mesh = new Line(await geometry, raw.material === undefined ? undefined : await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
 
         else if (raw.mode === WEBGL_CONSTANTS.LINE_LOOP)
-            mesh = new LineLoop(await geometry, await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
+            mesh = new LineLoop(await geometry, raw.material === undefined ? undefined : await this.parser.getExtension(MateriaLineExtension).getLoaded(raw.material));
 
         else if (raw.mode === WEBGL_CONSTANTS.POINTS)
-            mesh = new Points(await geometry, await this.parser.getExtension(MaterialPointExtension).getLoaded(raw.material));
+            mesh = new Points(await geometry, raw.material === undefined ? undefined : await this.parser.getExtension(MaterialPointExtension).getLoaded(raw.material));
 
         else
             throw new Error('GLTFLoader: Primitive mode unsupported: ' + raw.mode);
