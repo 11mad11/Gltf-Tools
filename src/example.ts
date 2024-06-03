@@ -1,9 +1,8 @@
-import { AmbientLight, Box3, BufferGeometry, DirectionalLight, DirectionalLightHelper, Light, Mesh, PerspectiveCamera, PointLight, PointLightHelper, Sphere, SpotLight, SpotLightHelper, Vector2, Vector3, WebGLRenderer } from "three";
 import { Extensions, Viewer } from ".";
 import { GLTFLoader, GLTFParser } from "./tools/GLTFLoader";
 
 function importExample(example: string) {
-    return import(`./examples/${example}.ts`).then(() => { });
+    return import(`./examples/${example}.ts`);
 }
 
 
@@ -16,7 +15,9 @@ type Config<T> = {
     url: string,
     setup?(parser: GLTFParser, viewer: Viewer): T | Promise<T>
     render?(ctx: Awaited<T>): void
-}
+} | {
+    import: () => Promise<any>
+};
 const c = <T>(c: Config<T>) => c
 
 const commit = "5460021c0abb8874826652a3853dd0be0ba28fe2";
@@ -63,8 +64,20 @@ const configs: Record<string, undefined | Config<any>> = {
     "City": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/VirtualCity/glTF-Binary/VirtualCity.glb"
     },
-    "CesiumMan":{
+    "CityFixed": {
+        import: () => import("./examples/cityFixed")
+    },
+    "CesiumMan": {
         url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/CesiumMan/glTF-Binary/CesiumMan.glb"
+    },
+    "AlphaBlendModeTest": {
+        url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/AlphaBlendModeTest/glTF-Binary/AlphaBlendModeTest.glb"
+    },
+    "MorphStressTest": {
+        url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/MorphStressTest/glTF-Binary/MorphStressTest.glb"
+    },
+    "MeshPrimitiveModes": {
+        url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/" + commit + "/Models/MeshPrimitiveModes/glTF-Embedded/MeshPrimitiveModes.gltf"
     }
 } as const
 {
@@ -77,11 +90,26 @@ const configs: Record<string, undefined | Config<any>> = {
     });
 }
 
-const config = configs[(location.hash || "#Avocado.glb").substring(1)];
+let config = configs[(location.hash || "#Avocado.glb").substring(1)];
 
-if (!config) {
-    importExample(location.hash.substring(1));
-} else {
+(async () => {
+    if (!config) {
+        await importExample(location.hash.substring(1)).catch((e) => {
+            if ("message" in e && (e.message as string).startsWith("Unknown variable dynamic import")) {
+                console.log("No example found trying as an URL");
+                loadFromUrl({ url: location.hash.substring(1) });
+            } else {
+                throw e;
+            }
+        });
+    } else if ("import" in config) {
+        Object.assign(window, await config?.import?.());
+    } else if ("url" in config) {
+        await loadFromUrl(config);
+    }
+})();
+
+async function loadFromUrl(config: Extract<Config<any>, { url }>) {
     const viewer = new Viewer();
     window.viewer = viewer;
     viewer.mount(document.querySelector(".content"));
@@ -101,7 +129,7 @@ if (!config) {
     console.log(config);
     const ctx = await config.setup?.(parser, viewer);
 
-    viewer.loop(()=>config.render?.(ctx));
+    viewer.loop(() => config.render?.(ctx));
 }
 
 
