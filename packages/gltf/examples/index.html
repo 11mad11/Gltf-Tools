@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLTF Examples</title>
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding-top: 15px;
+            box-sizing: border-box;
+            height: 100vh;
+        }
+
+        .sidebar h1 {
+            margin-top: 0;
+            padding: 0 1rem;
+            text-align: center;
+        }
+
+        .sidebar ul {
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar li {
+            box-sizing: border-box;
+            text-wrap: nowrap;
+            width: 100%;
+            padding: 1rem;
+            list-style-type: none;
+            text-align: center;
+        }
+
+        .sidebar li:hover {
+            background-color: #00000011;
+            cursor: pointer;
+        }
+
+        .content {
+            flex-grow: 1;
+            background-color: #ecf0f1;
+            box-sizing: border-box;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Tooltip container */
+        .tooltip {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            right: 0;
+        }
+
+        /* Tooltip label */
+        .tooltip > span {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: inline-block;
+            border-bottom: 1px dotted black;
+            /* If you want dots under the hoverable text */
+        }
+
+        /* Tooltip text */
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            overflow-y: auto;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 6px;
+
+            /* Position the tooltip text - see examples below! */
+            position: absolute;
+            z-index: 1;
+            top: 0;
+            right: 0;
+        }
+
+        /* Show the tooltip text when you mouse over the tooltip container */
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <h1>Examples</h1>
+        <ul id="list">
+        </ul>
+    </div>
+    <div class="content">
+    </div>
+    <div class="tooltip">
+        <span>Help</span>
+
+        <div class="tooltiptext">
+            <p>
+                Use right click in the canvas to open the context menu. 
+                From that menu, you can select the camera, animation and scene. 
+                You can also enable some debug line for the cameras and light.
+            </p>
+            <p>You can also double click to change camera.</p>
+        </div>
+    </div>
+    <script src="./example.js" type="module"></script>
+</body>
+
+</html>

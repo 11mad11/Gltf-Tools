@@ -1,0 +1,32 @@
+{
+  "name": "nuxt-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.0.1",
+    "@gltf-transform/extensions": "^4.0.1",
+    "@gltf-transform/functions": "^4.0.1",
+    "@nuxt/ui": "^2.16.0",
+    "@pinia/nuxt": "^0.5.1",
+    "@types/draco3dgltf": "^1.4.3",
+    "chokidar": "^3.6.0",
+    "draco3dgltf": "^1.5.7",
+    "engine.io": "^6.5.4",
+    "nuxt": "^3.11.2",
+    "pinia": "^2.1.7",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.1"
+  }
+}
