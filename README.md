@@ -26,7 +26,7 @@ npm run serve
 # Update
 ```
 cd <project folder>/Gltf-Tools
-git reset --hard origin/master
+git reset --hard origin/main
 cd packages/server
 npm i
 ```
