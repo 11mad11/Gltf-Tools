@@ -11,7 +11,10 @@ const defaultConfig = {
 };
 
 
-type Config = typeof defaultConfig;
+type Config = {
+    renderer?: ConstructorParameters<typeof WebGLRenderer>[0],
+    dontMoveCameraOnReload?: boolean
+};
 
 export class Viewer {
     renderer: WebGLRenderer;
@@ -29,11 +32,12 @@ export class Viewer {
     _sceneIndex = 0;
     _cameraIndex = -1;
     _animationIndex = -1;
+    config: Config
 
-    constructor(config?: Config) {
-        config = mergeDeep(config ?? {}, defaultConfig);
+    constructor(_config?: Config) {
+        this.config = mergeDeep(_config ?? {}, defaultConfig);
 
-        this.renderer = new WebGLRenderer(config.renderer);
+        this.renderer = new WebGLRenderer(this.config.renderer);
         this.renderer.setClearColor(0xAA9999);
         this.renderer.shadowMap.enabled = true;
 
@@ -139,14 +143,6 @@ export class Viewer {
         });
     }
 
-    clear() {
-        this.cameras.length = 0;
-        this.scenes.length = 0;
-        this._cameraIndex = -1;
-        this._sceneIndex = 0;
-        this.mixer.stopAllAction();
-    }
-
     resize() {
         const container = this.renderer.domElement.parentElement;
         if (!container)
@@ -170,7 +166,6 @@ export class Viewer {
     }
 
     async loadFromParser(parser: Promise<GLTFParser> | GLTFParser, animation = true) {
-        this.clear();
         parser = await parser;
         const scenes = await parser.getExtension(Extensions.SceneExtension).loadAllScene() ?? [];
         const cameras = await parser.getExtension(Extensions.CameraExtension).loadAllCamera() ?? [];
@@ -182,6 +177,7 @@ export class Viewer {
             currentCamera: parser.getExtension(Extensions.CameraExtension).defaultCameraIndex,
         });
 
+        this.mixer.stopAllAction();
         if (animation && parser.json.animations?.length) {
             const animations = (parser.json.animations as any[]).map((_, i) => parser.getExtension(Extensions.AnimationExtension).getLoaded(i))
             this.loadAnimations(await Promise.all(animations));
@@ -192,6 +188,7 @@ export class Viewer {
     }
 
     load(cfg: { scenes: Scene[], cameras: Camera[], currentScene?: number, currentCamera?: number }) {
+        const firstLoad = !this.scenes.length;
         this.scenes = cfg.scenes;
         this.cameras = cfg.cameras;
 
@@ -230,7 +227,7 @@ export class Viewer {
         }
 
         this.selectCamera(cfg.currentCamera > -1 ? cfg.currentCamera : -1);
-        this.selectScene(cfg.currentScene ?? 0);
+        this.selectScene(cfg.currentScene ?? 0, firstLoad || !this.config.dontMoveCameraOnReload);
         this.selectAnimation(-1);
     }
 
@@ -249,34 +246,37 @@ export class Viewer {
         action.play();
     }
 
-    selectScene(i: number) {
+    selectScene(i: number, moveCamera = true) {
         this.selectAnimation(-1);
         const scene = this.scenes[i];
-        const sphere = new Sphere(undefined, 0.0001);
 
-        scene.traverse((n) => {
-            sphere.center.add(n.position);
-            sphere.center.divideScalar(2)
-        });
+        if (moveCamera) {
+            const sphere = new Sphere(undefined, 0.0001);
 
-        scene.traverse((n) => {
-            if (n.constructor.name.indexOf("Helper") !== -1)
-                return;
-            if (n instanceof Mesh && n.geometry instanceof BufferGeometry) {
-                n.geometry.computeBoundingSphere();
-                const bs = n.geometry.boundingSphere.clone().translate(n.position);
-                console.log(n.scale);
-                sphere.union(bs);
-            }
-            return n;
-        });
+            scene.traverse((n) => {
+                sphere.center.add(n.position);
+                sphere.center.divideScalar(2)
+            });
 
-        console.log(sphere);
+            scene.traverse((n) => {
+                if (n.constructor.name.indexOf("Helper") !== -1)
+                    return;
+                if (n instanceof Mesh && n.geometry instanceof BufferGeometry) {
+                    n.geometry.computeBoundingSphere();
+                    const bs = n.geometry.boundingSphere.clone().translate(n.position);
+                    console.log(n.scale);
+                    sphere.union(bs);
+                }
+                return n;
+            });
 
-        this.control.target.copy(sphere.center);
-        this.control.minDistance = (1 / (sphere.radius + 1)) * 0.5 + sphere.radius;
-        this.control.update();
-        this.control.minDistance = 0;
+            console.log(sphere);
+
+            this.control.target.copy(sphere.center);
+            this.control.minDistance = (1 / (sphere.radius + 1)) * 0.5 + sphere.radius;
+            this.control.update();
+            this.control.minDistance = 0;
+        }
     }
 
     selectCamera(i: number) {

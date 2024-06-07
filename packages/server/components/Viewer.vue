@@ -8,7 +8,9 @@ declare module window {
     let parser: GLTFParser
 }
 
-const viewer = new Viewer();
+const viewer = new Viewer({
+    dontMoveCameraOnReload: true
+});
 window.viewer = viewer;
 const canvasDiv = ref<HTMLDivElement>();
 
