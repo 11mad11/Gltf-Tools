@@ -6,6 +6,14 @@ export default defineNuxtConfig({
     host: "0.0.0.0",
     port: 10001
   },
+  vite: {
+    optimizeDeps: {
+      exclude: ["three"]
+    },
+    build: {
+      target: "esnext"
+    }
+  },
   nitro: {
     experimental: {
       websocket: true

@@ -8,10 +8,12 @@ declare module window {
     let parser: GLTFParser
 }
 
-const viewer = new Viewer({
+const viewer = Viewer.newWebGPU({
     dontMoveCameraOnReload: true
 });
+viewer.then(viewer => {
 window.viewer = viewer;
+})
 const canvasDiv = ref<HTMLDivElement>();
 
 const socket = io({
@@ -31,18 +33,18 @@ socket.on("load", async (id) => {
 
     const parser = await loader.load(new URL(id, new URL("/api/gltf/", location.href)));
     window.parser = parser;
-    viewer.loadFromParser(parser);
+    (await viewer).loadFromParser(parser);
 });
 socket.onAny((...args) => console.log(...args));
 
-onMounted(() => {
-    viewer.mount(canvasDiv.value!);
-    viewer.loop(() => { });
+onMounted(async () => {
+    (await viewer).mount(canvasDiv.value!);
+    (await viewer).loop(() => { });
 });
 
-onUnmounted(() => {
+onUnmounted(async () => {
     socket.close();
-    viewer.renderer.domElement.remove();
+    (await viewer).config.renderer.domElement.remove();
 });
 
 const isOpen = ref(false);
