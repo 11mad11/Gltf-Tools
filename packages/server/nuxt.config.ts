@@ -3,8 +3,16 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ["@nuxt/ui", "@pinia/nuxt"],
   devServer: {
-    host: true,
+    host: "0.0.0.0",
     port: 10001
+  },
+  vite: {
+    optimizeDeps: {
+      exclude: ["three"]
+    },
+    build: {
+      target: "esnext"
+    }
   },
   nitro: {
     experimental: {

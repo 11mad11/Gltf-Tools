@@ -9,6 +9,7 @@ export default defineLazyEventHandler(async () => {
     const gltf = await useGltf();
 
     return defineEventHandler((event) => {
+        setResponseHeader(event, "Cache-Control", "no-cache");
         log(event);
         return serveStatic(event, {
             getContents: (id) => gltf.read(id.substring(10))?.[0],
