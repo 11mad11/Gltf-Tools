@@ -1,21 +1,21 @@
-import { AmbientLight, AnimationClip, AnimationMixer, BufferGeometry, Camera, CameraHelper, Clock, DirectionalLight, DirectionalLightHelper, Light, Mesh, Object3D, PerspectiveCamera, PointLight, PointLightHelper, Scene, Sphere, SpotLight, SpotLightHelper, WebGLRenderer } from "three";
+import { AmbientLight, AnimationClip, AnimationMixer, BufferGeometry, Camera, CameraHelper, Clock, Color, DirectionalLight, DirectionalLightHelper, Light, Mesh, Object3D, PerspectiveCamera, PointLight, PointLightHelper, Scene, Sphere, SpotLight, SpotLightHelper, WebGLRenderer } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFParser } from "./GLTFLoader";
 import * as Extensions from "../extensions";
 
-const defaultConfig = {
-    renderer: {
-        antialias: true,
-        alpha: true,
-    } as ConstructorParameters<typeof WebGLRenderer>[0]
+export interface RendererI {
+    get domElement(): HTMLElement
+    checkVisibility(): boolean
+    setSize(w: number, h: number): void
+    render(scene: Scene, camera: Camera): void
+}
+
+type Config = {
+    renderer: RendererI
+    dontMoveCameraOnReload?: boolean
 };
 
-
-type Config = typeof defaultConfig;
-
 export class Viewer {
-    renderer: WebGLRenderer;
-
     camera = new PerspectiveCamera(75, 1, 0.01, 1000);
     control: OrbitControls;
     ambiant = new AmbientLight();
@@ -30,18 +30,13 @@ export class Viewer {
     _cameraIndex = -1;
     _animationIndex = -1;
 
-    constructor(config?: Config) {
-        config = mergeDeep(config ?? {}, defaultConfig);
-
-        this.renderer = new WebGLRenderer(config.renderer);
-        this.renderer.setClearColor(0xAA9999);
-        this.renderer.shadowMap.enabled = true;
-
-        this.control = new OrbitControls(this.camera, this.renderer.domElement);
+    constructor(public config: Config) {
+        console.log(config);
+        this.control = new OrbitControls(this.camera, this.config.renderer.domElement);
 
         window.addEventListener('resize', () => this.resize(), false);
 
-        this.renderer.domElement.addEventListener("dblclick", () => {
+        this.config.renderer.domElement.addEventListener("dblclick", () => {
             this.selectCamera(this._cameraIndex >= this.cameras.length ? -1 : this._cameraIndex + 1);
         });
 
@@ -52,7 +47,70 @@ export class Viewer {
             spector.captureCanvas(renderer.domElement);
     }
 
+    static newGL(config?: Partial<Config>) {
+        const renderer = new WebGLRenderer({
+            antialias: true,
+            alpha: true
+        });
+        renderer.setClearColor(new Color(0xAA9999));
+        renderer.shadowMap.enabled = true;
+
+        return new Viewer(mergeDeep(config ?? {}, {
+            renderer: {
+                checkVisibility() {
+                    return renderer.domElement?.checkVisibility?.() ?? true
+                },
+                render(scene, camera) {
+                    renderer.render(scene, camera);
+                },
+                setSize(w, h) {
+                    renderer.setSize(w, h);
+                },
+                get domElement() {
+                    return renderer.domElement
+                }
+            }
+        } satisfies Config))
+    }
+
+    static async newWebGPU(config?: Partial<Config>) {
+        if (!await (navigator as any).gpu.requestAdapter())
+            throw new Error();
+        const [Renderer] = await Promise.all([import('three/examples/jsm/renderers/webgpu/WebGPURenderer')]);
+
+        const parameters = {
+            antialias: true,
+            alpha: true
+        };
+
+        const renderer = new Renderer.default(parameters);
+        renderer.setClearColor(new Color(0xAA9999));
+
+        const viewer = new Viewer(mergeDeep(config ?? {}, {
+            renderer: {
+                checkVisibility() {
+                    return renderer.domElement?.checkVisibility?.() ?? true
+                },
+                render(scene, camera) {
+                    renderer.render(scene, camera);
+                },
+                setSize(w, h) {
+                    renderer.setSize(w, h);
+                },
+                get domElement() {
+                    return renderer.domElement
+                }
+            }
+        } satisfies Config));
+
+        //the rendering context can be long to initate
+        await renderer.compileAsync(new Scene(), viewer.camera)
+
+        return viewer;
+    }
+
     private initContextMenu() {
+        const domElement = this.config.renderer.domElement
         const contextmenuDiv = document.createElement('div');
         document.body.append(contextmenuDiv);
         Object.assign(contextmenuDiv.style, {
@@ -80,11 +138,11 @@ export class Viewer {
         }
 
         let moved = false;
-        this.renderer.domElement.addEventListener("mousedown", (e) => {
+        domElement.addEventListener("mousedown", (e) => {
             contextmenuDiv.style.display = "none";
             moved = false;
         });
-        this.renderer.domElement.addEventListener("mouseup", (e) => {
+        domElement.addEventListener("mouseup", (e) => {
             if (moved || e.button != 2)
                 return;
             contextmenuDiv.innerHTML = "";
@@ -131,28 +189,20 @@ export class Viewer {
             contextmenuDiv.style.top = e.clientY + "px";
             contextmenuDiv.style.left = e.clientX + "px";
         });
-        this.renderer.domElement.addEventListener("mousemove", () => {
+        domElement.addEventListener("mousemove", () => {
             moved = true;
         });
-        this.renderer.domElement.addEventListener("contextmenu", (e) => {
+        domElement.addEventListener("contextmenu", (e) => {
             e.preventDefault();
         });
     }
 
-    clear() {
-        this.cameras.length = 0;
-        this.scenes.length = 0;
-        this._cameraIndex = -1;
-        this._sceneIndex = 0;
-        this.mixer.stopAllAction();
-    }
-
     resize() {
-        const container = this.renderer.domElement.parentElement;
+        const container = this.config.renderer.domElement.parentElement;
         if (!container)
             return;
 
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        this.config.renderer.setSize(container.clientWidth, container.clientHeight);
         this.camera.aspect = container.clientWidth / container.clientHeight;
         this.camera.updateProjectionMatrix();
 
@@ -165,12 +215,11 @@ export class Viewer {
     }
 
     mount(el: Element) {
-        el.append(this.renderer.domElement);
+        el.append(this.config.renderer.domElement);
         setTimeout(() => this.resize(), 0);
     }
 
     async loadFromParser(parser: Promise<GLTFParser> | GLTFParser, animation = true) {
-        this.clear();
         parser = await parser;
         const scenes = await parser.getExtension(Extensions.SceneExtension).loadAllScene() ?? [];
         const cameras = await parser.getExtension(Extensions.CameraExtension).loadAllCamera() ?? [];
@@ -182,6 +231,7 @@ export class Viewer {
             currentCamera: parser.getExtension(Extensions.CameraExtension).defaultCameraIndex,
         });
 
+        this.mixer.stopAllAction();
         if (animation && parser.json.animations?.length) {
             const animations = (parser.json.animations as any[]).map((_, i) => parser.getExtension(Extensions.AnimationExtension).getLoaded(i))
             this.loadAnimations(await Promise.all(animations));
@@ -192,6 +242,7 @@ export class Viewer {
     }
 
     load(cfg: { scenes: Scene[], cameras: Camera[], currentScene?: number, currentCamera?: number }) {
+        const firstLoad = !this.scenes.length;
         this.scenes = cfg.scenes;
         this.cameras = cfg.cameras;
 
@@ -230,7 +281,7 @@ export class Viewer {
         }
 
         this.selectCamera(cfg.currentCamera > -1 ? cfg.currentCamera : -1);
-        this.selectScene(cfg.currentScene ?? 0);
+        this.selectScene(cfg.currentScene ?? 0, firstLoad || !this.config.dontMoveCameraOnReload);
         this.selectAnimation(-1);
     }
 
@@ -249,34 +300,37 @@ export class Viewer {
         action.play();
     }
 
-    selectScene(i: number) {
+    selectScene(i: number, moveCamera = true) {
         this.selectAnimation(-1);
         const scene = this.scenes[i];
-        const sphere = new Sphere(undefined, 0.0001);
 
-        scene.traverse((n) => {
-            sphere.center.add(n.position);
-            sphere.center.divideScalar(2)
-        });
+        if (moveCamera) {
+            const sphere = new Sphere(undefined, 0.0001);
 
-        scene.traverse((n) => {
-            if (n.constructor.name.indexOf("Helper") !== -1)
-                return;
-            if (n instanceof Mesh && n.geometry instanceof BufferGeometry) {
-                n.geometry.computeBoundingSphere();
-                const bs = n.geometry.boundingSphere.clone().translate(n.position);
-                console.log(n.scale);
-                sphere.union(bs);
-            }
-            return n;
-        });
+            scene.traverse((n) => {
+                sphere.center.add(n.position);
+                sphere.center.divideScalar(2)
+            });
 
-        console.log(sphere);
+            scene.traverse((n) => {
+                if (n.constructor.name.indexOf("Helper") !== -1)
+                    return;
+                if (n instanceof Mesh && n.geometry instanceof BufferGeometry) {
+                    n.geometry.computeBoundingSphere();
+                    const bs = n.geometry.boundingSphere.clone().translate(n.position);
+                    console.log(n.scale);
+                    sphere.union(bs);
+                }
+                return n;
+            });
 
-        this.control.target.copy(sphere.center);
-        this.control.minDistance = (1 / (sphere.radius + 1)) * 0.5 + sphere.radius;
-        this.control.update();
-        this.control.minDistance = 0;
+            console.log(sphere);
+
+            this.control.target.copy(sphere.center);
+            this.control.minDistance = (1 / (sphere.radius + 1)) * 0.5 + sphere.radius;
+            this.control.update();
+            this.control.minDistance = 0;
+        }
     }
 
     selectCamera(i: number) {
@@ -288,11 +342,11 @@ export class Viewer {
         if (!scene)
             return;
         this.control.update();
-        this.renderer.render(scene, this.cameras[this._cameraIndex] ?? this.camera);
+        this.config.renderer.render(scene, this.cameras[this._cameraIndex] ?? this.camera);
     }
 
     loop(fn: () => void) {
-        if (!this.renderer.domElement?.checkVisibility?.())
+        if (!this.config.renderer.checkVisibility())
             return;
         fn();
         this.mixer.update(this.clock.getDelta());

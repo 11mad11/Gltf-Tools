@@ -8,8 +8,12 @@ declare module window {
     let parser: GLTFParser
 }
 
-const viewer = new Viewer();
-window.viewer = viewer;
+const viewer = Viewer.newWebGPU({
+    dontMoveCameraOnReload: true
+});
+viewer.then(viewer => {
+    window.viewer = viewer;
+})
 const canvasDiv = ref<HTMLDivElement>();
 
 const socket = io({
@@ -17,9 +21,7 @@ const socket = io({
 });
 socket.on("connect", () => console.log("connected"));
 socket.on("disconnect", () => console.log("disconnect"));
-socket.on("setting", async (setting) => {
-});
-socket.on("load", async (id) => {
+socket.on("state", async (state) => {
     const loader = new GLTFLoader();
     window.loader = loader;
     Extensions.registerBasic(loader);
@@ -27,20 +29,20 @@ socket.on("load", async (id) => {
     loader.register(Extensions.KHR_lights_punctual);
     loader.register(Extensions.KHR_materials_unlit);
 
-    const parser = await loader.load(new URL(id, new URL("/api/gltf/", location.href)));
+    const parser = await loader.load(new URL(state.id, new URL("/api/gltf/", location.href)));
     window.parser = parser;
-    viewer.loadFromParser(parser);
+    (await viewer).loadFromParser(parser);
 });
 socket.onAny((...args) => console.log(...args));
 
-onMounted(() => {
-    viewer.mount(canvasDiv.value!);
-    viewer.loop(() => { });
+onMounted(async () => {
+    (await viewer).mount(canvasDiv.value!);
+    (await viewer).loop(() => { });
 });
 
-onUnmounted(() => {
+onUnmounted(async () => {
     socket.close();
-    viewer.renderer.domElement.remove();
+    (await viewer).config.renderer.domElement.remove();
 });
 
 const isOpen = ref(false);
